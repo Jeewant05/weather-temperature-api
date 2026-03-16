@@ -1,66 +1,61 @@
-const { AppError } = require('../errors');
-const createZipCodeService = require('./zipCodeService');
-const fetchWithTimeout = require('./fetchWithTimeout');
-
-const SCALE_LABELS = {
-  fahrenheit: 'Fahrenheit',
-  celsius: 'Celsius'
-};
+const AppError = require("../errors");
+const zipCodeService = require("./zipCodeService");
 
 function normalizeScale(scale) {
   if (!scale) {
-    return SCALE_LABELS.fahrenheit;
+    return "Fahrenheit";
   }
 
-  const normalizedScale = SCALE_LABELS[String(scale).trim().toLowerCase()];
+  const value = String(scale).trim().toLowerCase();
 
-  if (normalizedScale) {
-    return normalizedScale;
+  if (value === "fahrenheit") {
+    return "Fahrenheit";
   }
 
-  throw new AppError('scale must be either Fahrenheit or Celsius', 400);
+  if (value === "celsius") {
+    return "Celsius";
+  }
+
+  return null;
 }
 
-function createWeatherService({
-  fetchImpl = fetch,
-  zipCodeService = createZipCodeService(fetchImpl)
-} = {}) {
-  async function getTemperatureByZip(zipCode, scale) {
-    const normalizedScale = normalizeScale(scale);
-    const { latitude, longitude } =
-      await zipCodeService.getCoordinatesByZipCode(zipCode);
+async function getTemperatureByZip(zipCode, scale) {
+  const finalScale = normalizeScale(scale);
 
-    const url = new URL('https://api.open-meteo.com/v1/forecast');
-    url.searchParams.set('latitude', latitude);
-    url.searchParams.set('longitude', longitude);
-    url.searchParams.set('current', 'temperature_2m');
-    url.searchParams.set('temperature_unit', normalizedScale.toLowerCase());
+  if (!finalScale) {
+    throw new AppError("Scale must be Fahrenheit or Celsius", 400);
+  }
 
-    const response = await fetchWithTimeout(
-      fetchImpl,
-      url,
-      'failed to fetch weather data'
+  const { latitude, longitude } = await zipCodeService.getCoordinatesByZip(zipCode);
+  const unit = finalScale === "Celsius" ? "celsius" : "fahrenheit";
+
+  let response;
+
+  try {
+    response = await fetch(
+      `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m&temperature_unit=${unit}`
     );
-
-    if (!response.ok) {
-      throw new AppError('failed to fetch weather data', 502);
-    }
-
-    const data = await response.json();
-    const temperature = data?.current?.temperature_2m;
-
-    if (typeof temperature !== 'number') {
-      throw new AppError('weather data is mising the current temperature', 502);
-    }
-
-    return {
-      temperature: Math.round(temperature),
-      scale: normalizedScale
-    };
+  } catch (error) {
+    throw new AppError("Could not get weather data", 502);
   }
 
-  return { getTemperatureByZip };
+  if (!response.ok) {
+    throw new AppError("Could not get weather data", 502);
+  }
+
+  const data = await response.json();
+  const temperature = data.current && data.current.temperature_2m;
+
+  if (typeof temperature !== "number") {
+    throw new AppError("Weather data is mising temperature", 502);
+  }
+
+  return {
+    temperature,
+    scale: finalScale
+  };
 }
 
-module.exports = createWeatherService;
-module.exports.normalizeScale = normalizeScale;
+module.exports = {
+  getTemperatureByZip
+};

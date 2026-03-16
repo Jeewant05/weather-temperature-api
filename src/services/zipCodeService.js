@@ -1,40 +1,47 @@
-const { AppError } = require('../errors');
-const fetchWithTimeout = require('./fetchWithTimeout');
+const AppError = require("../errors");
 
-function createZipCodeService(fetchImpl = fetch) {
-  async function getCoordinatesByZipCode(zipCode) {
-    if (!/^\d{5}$/.test(zipCode)) {
-      throw new AppError('zip code must be a 5-digit US ZIP code', 400);
-    }
-
-    const response = await fetchWithTimeout(
-      fetchImpl,
-      `https://api.zippopotam.us/us/${zipCode}`,
-      'faile to look up the zip code'
-    );
-
-    if (response.status === 404) {
-      throw new AppError('zip code was not found', 404);
-    }
-
-    if (!response.ok) {
-      throw new AppError('failed to lok up the zip code', 502);
-    }
-
-    const data = await response.json();
-    const firstPlace = data.places?.[0];
-
-    if (!firstPlace) {
-      throw new AppError('zip code location data is missing', 502);
-    }
-
-    return {
-      latitude: Number(firstPlace.latitude),
-      longitude: Number(firstPlace.longitude)
-    };
-  }
-
-  return { getCoordinatesByZipCode };
+function isFiveDigitZip(zipCode) {
+  return (
+    typeof zipCode === "string" &&
+    zipCode.length === 5 &&
+    zipCode.split("").every((char) => char >= "0" && char <= "9")
+  );
 }
 
-module.exports = createZipCodeService;
+async function getCoordinatesByZip(zipCode) {
+  if (!isFiveDigitZip(zipCode)) {
+    throw new AppError("ZIP code must be 5 diits", 400);
+  }
+
+  let response;
+
+  try {
+    response = await fetch(`https://api.zippopotam.us/us/${zipCode}`);
+  } catch (error) {
+    throw new AppError("Could not look up ZIP code", 502);
+  }
+
+  if (response.status === 404) {
+    throw new AppError("ZIP code not found", 400);
+  }
+
+  if (!response.ok) {
+    throw new AppError("Could not look up ZIP code", 502);
+  }
+
+  const data = await response.json();
+  const place = data.places && data.places[0];
+
+  if (!place) {
+    throw new AppError("ZIP code not found", 400);
+  }
+
+  return {
+    latitude: Number(place.latitude),
+    longitude: Number(place.longitude)
+  };
+}
+
+module.exports = {
+  getCoordinatesByZip
+};

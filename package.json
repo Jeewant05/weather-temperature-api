@@ -1,7 +1,7 @@
 {
   "name": "jeewant-weather-api",
-  "version": "1.0.0",
-  "description": "Node.js api that returns current temperature for any given US ZIP code.",
+  "version": "1.0",
+  "description": "Node.js api which returns current temperature for US ZIP code.",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
