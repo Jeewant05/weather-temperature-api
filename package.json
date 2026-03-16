@@ -1,0 +1,21 @@
+{
+  "name": "jeewant-weather-api",
+  "version": "1.0.0",
+  "description": "Node.js api that returns current temperature for any given US ZIP code.",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node --test"
+  },
+  "author": "Jeewant Choudhry",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  },
+  "devDependencies": {
+    "supertest": "^7.1.4"
+  }
+}
